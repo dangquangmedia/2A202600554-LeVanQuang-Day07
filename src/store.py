@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Callable
 
 from .chunking import _dot
@@ -19,6 +20,8 @@ class EmbeddingStore:
         self,
         collection_name: str = "documents",
         embedding_fn: Callable[[str], list[float]] | None = None,
+        persist_directory: str | None = None,
+        use_chroma: bool | None = None,
     ) -> None:
         self._embedding_fn = embedding_fn or _mock_embed
         self._collection_name = collection_name
@@ -27,12 +30,23 @@ class EmbeddingStore:
         self._collection = None
         self._next_index = 0
 
+        should_use_chroma = (
+            use_chroma
+            if use_chroma is not None
+            else os.getenv("EMBEDDING_STORE_BACKEND", "").strip().lower() == "chroma"
+        )
+
+        if not should_use_chroma:
+            return
+
         try:
             import chromadb
-            client = chromadb.PersistentClient(path="./chroma_db")  # lưu data xuống diskdisk
+
+            db_path = persist_directory or os.getenv("CHROMA_DB_PATH", "./chroma_db")
+            client = chromadb.PersistentClient(path=db_path)
             self._collection = client.get_or_create_collection(
                 name=collection_name,
-                metadata={"hnsw:space": "cosine"},  # dùng cosine similarity
+                metadata={"hnsw:space": "cosine"},
             )
             self._use_chroma = True
         except Exception:
@@ -52,7 +66,7 @@ class EmbeddingStore:
             ids = [doc.id for doc in docs]
             texts = [doc.content for doc in docs]
             embeddings = [self._embedding_fn(doc.content) for doc in docs]
-            metadatas = [dict(doc.metadata) for doc in docs]
+            metadatas = [dict(doc.metadata) or None for doc in docs]
             self._collection.add(
                 ids=ids,
                 documents=texts,
