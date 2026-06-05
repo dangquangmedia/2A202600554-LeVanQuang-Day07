@@ -54,11 +54,18 @@ class EmbeddingStore:
             self._collection = None
 
     def _make_record(self, doc: Document) -> dict[str, Any]:
+        metadata = dict(doc.metadata or {})
+        metadata.setdefault("doc_id", doc.id)
+
+        record_id = f"{doc.id}-{self._next_index}"
+        self._next_index += 1
+
         return {
-            "id": doc.id,
+            "id": record_id,
+            "doc_id": doc.id,
             "content": doc.content,
+            "metadata": metadata,
             "embedding": self._embedding_fn(doc.content),
-            "metadata": dict(doc.metadata),  # shallow copy
         }
 
     def add_documents(self, docs: list[Document]) -> None:
@@ -75,7 +82,8 @@ class EmbeddingStore:
             )
         else:
             for doc in docs:
-                self._store.append(self._make_record(doc))
+                record = self._make_record(doc)
+                self._store.append(record)
 
     def get_collection_size(self) -> int:
         if self._use_chroma:
@@ -103,18 +111,19 @@ class EmbeddingStore:
     def _search_records(self, query: str, records: list[dict], top_k: int) -> list[dict]:
         if not records:
             return []
-        q_vec = self._embedding_fn(query)
-        scored = []
-        for rec in records:
-            score = _dot(q_vec, rec["embedding"])
+        query_embedding = self._embedding_fn(query)
+        scored: list[dict] = []
+        for record in records:
+            score = _dot(query_embedding, record["embedding"])
             scored.append({
-                "id": rec["id"],
-                "content": rec["content"],
-                "metadata": rec["metadata"],
+                "id": record["id"],
+                "content": record["content"],
+                "metadata": record.get("metadata", {}),
                 "score": score,
             })
-        scored.sort(key=lambda x: x["score"], reverse=True)
-        return scored[:top_k]
+
+        scored.sort(key=lambda item: item["score"], reverse=True)
+        return scored[:max(0, top_k)]
 
     def search_with_filter(self, query: str, top_k: int = 3,
                         metadata_filter: dict | None = None) -> list[dict[str, Any]]:
@@ -146,10 +155,13 @@ class EmbeddingStore:
         # fallback in-memory
         if not metadata_filter:
             return self.search(query, top_k)
-        filtered = [
-            r for r in self._store
-            if all(r["metadata"].get(k) == v for k, v in metadata_filter.items())
-        ]
+
+        filtered = []
+        for r in self._store:
+            metadata = r.get("metadata", {})
+            if all(metadata.get(k) == v for k, v in metadata_filter.items()):
+                filtered.append(r)
+
         return self._search_records(query, filtered, top_k)
 
     def delete_document(self, doc_id: str) -> bool:
@@ -159,7 +171,7 @@ class EmbeddingStore:
             try:
                 self._collection.delete(ids=[doc_id])
             except Exception:
-                pass
+                return False
             return self._collection.count() < before
         before = len(self._store)
         self._store = [

@@ -17,7 +17,7 @@ Sau lab này, bạn cần có thể:
 
 ### Phase 1 — Cá Nhân: Hoàn Thành src package
 
-Mỗi sinh viên **tự mình** hoàn thành tất cả TODO trong `src/chunking.py`, `src/store.py`, và `src/agent.py`. `Document` dataclass và `FixedSizeChunker` đã được implement sẵn làm ví dụ.
+Mỗi sinh viên **tự mình** hoàn thành các phần còn thiếu trong `src/chunking.py`, `src/store.py`, và `src/agent.py`. `Document` dataclass và `FixedSizeChunker` đã được implement sẵn làm ví dụ.
 
 ### Phase 2 — Nhóm: So Sánh Retrieval Strategy
 
@@ -148,7 +148,7 @@ PY
 | Giai Đoạn | Hoạt Động |
 |-----------|-----------|
 | Chuẩn bị tài liệu | Nhóm chọn domain, thu thập tài liệu, chuyển sang .md/.txt |
-| Lập trình cá nhân | Warm-up + implement tất cả TODO (cá nhân) |
+| Lập trình cá nhân | Warm-up + hoàn thiện package `src` (cá nhân) |
 | Thiết kế strategy | Mỗi người thử strategy riêng, thống nhất 5 queries |
 | So sánh trong nhóm | Chạy benchmark, so sánh kết quả, chuẩn bị demo |
 | Demo & thảo luận | Trình bày strategy + so sánh, thảo luận liên nhóm |
@@ -223,7 +223,7 @@ Xem chi tiết tại `docs/SCORING.md`. Tóm tắt:
 
 ## Sản Phẩm Nộp Bài
 
-1. `src/` — hoàn thành tất cả TODO cần thiết
+1. `src/` — hoàn thành các phần implementation cần thiết
 2. `report/REPORT.md` — một báo cáo/sinh viên (gồm cả phần nhóm và cá nhân)
 
 ---

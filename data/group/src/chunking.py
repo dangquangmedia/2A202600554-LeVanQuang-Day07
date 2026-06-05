@@ -47,18 +47,15 @@ class SentenceChunker:
         self.max_sentences_per_chunk = max(1, max_sentences_per_chunk)
 
     def chunk(self, text: str) -> list[str]:
-        if not text or not text.strip():
-            return []
+        sentences = re.split(r'(?<=[.!?])\s+|(?<=\.)\n', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
 
-        # Split on sentence-ending punctuation followed by whitespace
-        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
-
-        # Group sentences into chunks of up to max_sentences_per_chunk
         chunks: list[str] = []
         for i in range(0, len(sentences), self.max_sentences_per_chunk):
             group = sentences[i : i + self.max_sentences_per_chunk]
             chunks.append(" ".join(group))
         return chunks
+
 
 class RecursiveChunker:
     """
@@ -75,46 +72,53 @@ class RecursiveChunker:
         self.chunk_size = chunk_size
 
     def chunk(self, text: str) -> list[str]:
-        if not text or not text.strip():
+        if not text:
             return []
-
-        chunks = self._split(text.strip(), self.separators)
-        return [c.strip() for c in chunks if c.strip()]
+        return self._split(text, self.separators)
 
     def _split(self, current_text: str, remaining_separators: list[str]) -> list[str]:
-        # Nếu text đã đủ nhỏ → trả về luôn
         if len(current_text) <= self.chunk_size:
-            return [current_text] if current_text.strip() else []
-        
-        # Nếu hết separator → cắt cứng theo chunk_size
+            return [current_text]
+
+        # No separators left — force split by character
         if not remaining_separators:
-            return [current_text[i:i+self.chunk_size] 
-                    for i in range(0, len(current_text), self.chunk_size)]
-        
+            return [
+                current_text[i : i + self.chunk_size]
+                for i in range(0, len(current_text), self.chunk_size)
+            ]
+
         sep = remaining_separators[0]
         rest = remaining_separators[1:]
-        
-        # Thử tách bằng separator hiện tại
+
         if sep == "":
-            parts = list(current_text)  # character-level
-        else:
-            parts = current_text.split(sep)
-        
-        # Gom lại thành chunks không vượt chunk_size
-        result = []
+            # Character-level split
+            return [
+                current_text[i : i + self.chunk_size]
+                for i in range(0, len(current_text), self.chunk_size)
+            ]
+
+        parts = current_text.split(sep)
+
+        chunks: list[str] = []
         current = ""
         for part in parts:
-            candidate = (current + sep + part) if current else part
+            candidate = current + sep + part if current else part
             if len(candidate) <= self.chunk_size:
                 current = candidate
             else:
                 if current:
-                    # Đệ quy nếu current vẫn còn quá lớn
-                    result.extend(self._split(current, rest))
-                current = part
+                    chunks.append(current)
+                # Part itself too large — recurse
+                if len(part) > self.chunk_size:
+                    chunks.extend(self._split(part, rest))
+                    current = ""
+                else:
+                    current = part
+
         if current:
-            result.extend(self._split(current, rest))
-        return result
+            chunks.append(current)
+
+        return chunks if chunks else [current_text]
 
 
 def _dot(a: list[float], b: list[float]) -> float:
@@ -122,6 +126,13 @@ def _dot(a: list[float], b: list[float]) -> float:
 
 
 def compute_similarity(vec_a: list[float], vec_b: list[float]) -> float:
+    """
+    Compute cosine similarity between two vectors.
+
+    cosine_similarity = dot(a, b) / (||a|| * ||b||)
+
+    Returns 0.0 if either vector has zero magnitude.
+    """
     mag_a = math.sqrt(_dot(vec_a, vec_a))
     mag_b = math.sqrt(_dot(vec_b, vec_b))
     if mag_a == 0.0 or mag_b == 0.0:
@@ -134,17 +145,17 @@ class ChunkingStrategyComparator:
 
     def compare(self, text: str, chunk_size: int = 200) -> dict:
         strategies = {
-            "fixed_size": FixedSizeChunker(chunk_size=chunk_size, overlap=50),
-            "by_sentences": SentenceChunker(max_sentences_per_chunk=3),
-            "recursive": RecursiveChunker(chunk_size=chunk_size),
+            "fixed_size": FixedSizeChunker(chunk_size=chunk_size, overlap=0).chunk(text),
+            "by_sentences": SentenceChunker(max_sentences_per_chunk=3).chunk(text),
+            "recursive": RecursiveChunker(chunk_size=chunk_size).chunk(text),
         }
+
         result = {}
-        for name, chunker in strategies.items():
-            chunks = chunker.chunk(text)
+        for name, chunks in strategies.items():
             avg_len = sum(len(c) for c in chunks) / len(chunks) if chunks else 0
             result[name] = {
                 "count": len(chunks),
-                "avg_length": round(avg_len, 1),
+                "avg_length": round(avg_len, 2),
                 "chunks": chunks,
             }
         return result

@@ -18,21 +18,40 @@ class KnowledgeBaseAgent:
         self.llm_fn = llm_fn
 
     def answer(self, question: str, top_k: int = 3) -> str:
-        # 1. Retrieve chunks liên quan nhất
+        # 1. Retrieve top-k relevant chunks
         results = self.store.search(question, top_k=top_k)
-        
-        # 2. Build prompt với context
-        context_parts = [r["content"] for r in results]
-        context = "\n\n".join(context_parts)
-        
-        prompt = f"""Dựa trên thông tin sau đây, hãy trả lời câu hỏi.
 
-    Context:
-    {context}
+        # 2. If no results, ask LLM to say it doesn't know
+        if not results:
+            prompt = (
+                "No relevant context was found in the knowledge base.\n"
+                f"Question: {question}\n"
+                "If you do not know, say you do not know."
+            )
+            return self.llm_fn(prompt)
 
-    Câu hỏi: {question}
+        # 3. Build context blocks with metadata and scores
+        context_blocks = []
+        for index, result in enumerate(results, start=1):
+            metadata = result.get("metadata", {})
+            source = metadata.get("source", metadata.get("doc_id", "unknown"))
+            score = result.get("score", 0.0)
+            content = result.get("content", "")
 
-    Trả lời:"""
-        
-        # 3. Gọi LLM
+            context_blocks.append(
+                f"[Chunk {index} | source={source} | score={score:.4f}]\n"
+                f"{content}"
+            )
+
+        context = "\n\n".join(context_blocks)
+
+        prompt = (
+            "You are a knowledge-base assistant. "
+            "Answer the question using only the context below.\n"
+            "If the answer is not supported by the context, say you do not know.\n\n"
+            f"Context:\n{context}\n\n"
+            f"Question: {question}\n\n"
+            "Answer:"
+        )
+
         return self.llm_fn(prompt)

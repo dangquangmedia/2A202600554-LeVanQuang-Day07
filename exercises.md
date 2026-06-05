@@ -29,7 +29,7 @@ No math required — explain conceptually:
 
 ## Part 2 — Core Coding (Cá nhân)
 
-Implement all TODOs in `src/chunking.py`, `src/store.py`, và `src/agent.py`. `Document` dataclass và `FixedSizeChunker` đã được implement sẵn làm ví dụ — đọc kỹ để hiểu pattern trước khi implement phần còn lại.
+Implement các phần còn thiếu trong `src/chunking.py`, `src/store.py`, và `src/agent.py`. `Document` dataclass và `FixedSizeChunker` đã được implement sẵn làm ví dụ — đọc kỹ để hiểu pattern trước khi implement phần còn lại.
 
 Run `pytest tests/` to check progress.
 

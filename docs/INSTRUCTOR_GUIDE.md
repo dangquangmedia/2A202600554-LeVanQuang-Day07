@@ -73,7 +73,7 @@ PY
 - Ex 1.2: Chunking math — tính toán số chunks
 
 **Implementation (80 phút):**
-- Mỗi sinh viên **tự mình** implement tất cả TODO trong `src/chunking.py`, `src/store.py`, và `src/agent.py`
+- Mỗi sinh viên **tự mình** implement các phần còn thiếu trong `src/chunking.py`, `src/store.py`, và `src/agent.py`
 - `Document` và `FixedSizeChunker` đã implement sẵn làm ví dụ
 - Thứ tự gợi ý: `SentenceChunker` → `RecursiveChunker` → `compute_similarity` → `ChunkingStrategyComparator` → `EmbeddingStore` → `KnowledgeBaseAgent`
 
